@@ -11,22 +11,22 @@ import Alamofire
 import Starscream
 
 class TriggerHandler: WebSocketDelegate {
-    private let socket: WebSocket
-    private weak var trigger: Trigger?
+    fileprivate let socket: WebSocket
+    fileprivate weak var trigger: Trigger?
 
-    init(url: NSURL, trigger: Trigger) {
+    init(url: URL, trigger: Trigger) {
         socket = WebSocket(url: url)
         socket.delegate = self
         self.trigger = trigger
         socket.connect()
     }
 
-    func dial(number: String) throws {
-        let data = try NSJSONSerialization.dataWithJSONObject(["command": "dial", "params": ["toNumber": number]], options: .PrettyPrinted)
-        if let jsonString = String(data: data, encoding: NSUTF8StringEncoding) {
-            socket.writeString(jsonString)
+    func dial(_ number: String) throws {
+        let data = try JSONSerialization.data(withJSONObject: ["command": "dial", "params": ["toNumber": number]], options: .prettyPrinted)
+        if let jsonString = String(data: data, encoding: String.Encoding.utf8) {
+            socket.write(string: jsonString)
         }
-        trigger?.delegate?.trigger(trigger!, didChangeStatus: .Initiated)
+        trigger?.delegate?.trigger(trigger!, didChangeStatus: .initiated)
     }
 
     func disconnect() {
@@ -37,7 +37,7 @@ class TriggerHandler: WebSocketDelegate {
         print("Did connect")
     }
 
-    func websocketDidReceiveData(socket: WebSocket, data: NSData) {
+    func websocketDidReceiveData(socket: WebSocket, data: Data) {
         print("Did receive data: \(data)")
     }
 
@@ -48,50 +48,51 @@ class TriggerHandler: WebSocketDelegate {
     func websocketDidReceiveMessage(socket: WebSocket, text: String) {
         print("Did receive message: \(text)")
         do {
-            if let data = text.dataUsingEncoding(NSUTF8StringEncoding) {
-                let update = try NSJSONSerialization.JSONObjectWithData(data, options: .AllowFragments)
-                if let statusObj = update["status"] as? String {
+            if let data = text.data(using: .utf8) {
+                let update = try JSONSerialization.jsonObject(with: data, options: .allowFragments)
+                if let up = update as? [String: Any],
+                    let statusObj = up["status"] as? String {
                     let status = Trigger.statusFromString(statusObj)
                     trigger?.delegate?.trigger(trigger!, didChangeStatus: status)
                 }
             }
         }
         catch let ex as NSError {
-            trigger?.delegate?.trigger(trigger!, didChangeStatus: .Error(Trigger.Error.JsonParseError))
+            trigger?.delegate?.trigger(trigger!, didChangeStatus: .error(Trigger.Error.jsonParseError))
             print("Unable to parse JSON update: \(ex)")
         }
     }
 }
 
 protocol TriggerDelegate: class {
-    func trigger(trigger: Trigger, didChangeStatus: Trigger.Status)
+    func trigger(_ trigger: Trigger, didChangeStatus: Trigger.Status)
 }
 
 class Trigger {
-    enum Error: ErrorType {
-        case JsonFormatError
-        case JsonParseError
+    enum Error: Swift.Error {
+        case jsonFormatError
+        case jsonParseError
     }
 
     enum Status {
-        case Unknown
-        case Initiated
-        case Error(ErrorType)
-        case Queued
-        case Ringing
-        case InProgress
-        case Cancelled
-        case Completed
-        case Failed
-        case Busy
-        case NoAnswer
+        case unknown
+        case initiated
+        case error(Error)
+        case queued
+        case ringing
+        case inProgress
+        case cancelled
+        case completed
+        case failed
+        case busy
+        case noAnswer
 
         var isEndState: Bool {
             switch self {
-            case .Unknown: fallthrough
-            case .Queued: fallthrough
-            case .Ringing: fallthrough
-            case .InProgress:
+            case .unknown: fallthrough
+            case .queued: fallthrough
+            case .ringing: fallthrough
+            case .inProgress:
                 return false
             default:
                 return true
@@ -100,35 +101,35 @@ class Trigger {
     }
 
     weak var delegate: TriggerDelegate?
-    private var handlers: [TriggerHandler] = []
+    fileprivate var handlers: [TriggerHandler] = []
 
     func trigger(to toNumber: String) {
-        let handler = TriggerHandler(url: NSURL(string: "ws://localhost:3003/")!, trigger: self)
+        let handler = TriggerHandler(url: URL(string: "ws://localhost:3003/")!, trigger: self)
         handler.socket.onConnect = { [unowned self ] _ in
             do {
                 try handler.dial("+12345678901")
             }
             catch {
-                self.delegate?.trigger(self, didChangeStatus: .Error(Error.JsonFormatError))
+                self.delegate?.trigger(self, didChangeStatus: .error(Error.jsonFormatError))
             }
         }
 
         handlers.append(handler)
     }
 
-    static func statusFromString(statusVal: String) -> Status {
+    static func statusFromString(_ statusVal: String) -> Status {
         switch statusVal {
-        case "initiated": return .Initiated
-        case "queued": return .Queued
-        case "ringing": return .Ringing
-        case "in-progress": return .InProgress
-        case "canceled": return .Cancelled
-        case "completed": return .Completed
-        case "failed": return .Failed
-        case "busy": return .Busy
-        case "no-answer": return .NoAnswer
+        case "initiated": return .initiated
+        case "queued": return .queued
+        case "ringing": return .ringing
+        case "in-progress": return .inProgress
+        case "canceled": return .cancelled
+        case "completed": return .completed
+        case "failed": return .failed
+        case "busy": return .busy
+        case "no-answer": return .noAnswer
         default:
-            return .Unknown
+            return .unknown
         }
     }
 }

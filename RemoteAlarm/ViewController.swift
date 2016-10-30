@@ -12,17 +12,17 @@ import DigitsKit
 extension Trigger.Status {
     var statusText: String? {
         switch self {
-        case .Initiated: return "Connecting..."
-        case .Error(_): return "No Bueno"
-        case .Busy: return "Busy"
-        case .Cancelled: return "Error"
-        case .Completed: return "Bueno"
-        case .Failed: return "Error"
-        case .InProgress: return "Connected"
-        case .Queued: return "Connecting..."
-        case .Ringing: return "Connecting..."
-        case .NoAnswer: return "No Answer"
-        case .Unknown: return nil
+        case .initiated: return "Connecting..."
+        case .error(_): return "No Bueno"
+        case .busy: return "Busy"
+        case .cancelled: return "Error"
+        case .completed: return "Bueno"
+        case .failed: return "Error"
+        case .inProgress: return "Connected"
+        case .queued: return "Connecting..."
+        case .ringing: return "Connecting..."
+        case .noAnswer: return "No Answer"
+        case .unknown: return nil
         }
     }
 }
@@ -38,7 +38,7 @@ class ViewController: UIViewController, TriggerDelegate {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
 
-        statusLabel.hidden = true
+        statusLabel.isHidden = true
         trigger.delegate = self
 
         let authButton = DGTAuthenticateButton { (session, error) in
@@ -47,8 +47,8 @@ class ViewController: UIViewController, TriggerDelegate {
             }
         }
 
-        authButton.center = self.view.center
-        self.view.addSubview(authButton)
+        authButton?.center = self.view.center
+        self.view.addSubview(authButton!)
     }
 
     override func didReceiveMemoryWarning() {
@@ -63,12 +63,12 @@ class ViewController: UIViewController, TriggerDelegate {
 
     //- MARK TriggerDelegate methods
 
-    func trigger(trigger: Trigger, didChangeStatus status: Trigger.Status) {
+    func trigger(_ trigger: Trigger, didChangeStatus status: Trigger.Status) {
         print("New status: \(status)")
         if let text = status.statusText {
             statusLabel.text = text
         }
-        statusLabel.hidden = false
+        statusLabel.isHidden = false
 
         if status.isEndState {
             handler?.disconnect()
